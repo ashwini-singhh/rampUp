@@ -95,4 +95,3 @@ CREATE TABLE IF NOT EXISTS feedback (
     feedback TEXT,
     satisfaction INTEGER
 );
-
