@@ -28,9 +28,14 @@ const chat = async (messages: Message[], model: string = OPENROUTER_MODEL) => {
     );
 
     return response.data.choices[0].message.content;
-  } catch (error) {
-    console.error("OpenRouter API Error:", error);
-    throw new Error("Failed to get response from LLM");
+  } catch (error: any) {
+    const errorMessage = error.response?.data?.error?.message || error.message;
+    console.error("OpenRouter API Error Details:", {
+      status: error.response?.status,
+      message: errorMessage,
+      data: error.response?.data,
+    });
+    throw new Error(`LLM Error: ${errorMessage}`);
   }
 };
 

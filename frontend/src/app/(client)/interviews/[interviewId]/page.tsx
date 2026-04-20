@@ -27,7 +27,10 @@ import { ResponseService } from "@/services/responses.service";
 import type { Interview } from "@/types/interview";
 import type { Response } from "@/types/response";
 import { Eye, Filter, Palette, Pencil, Share2, UserIcon } from "lucide-react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import React, { useEffect, useState, useMemo } from "react";
+import { ChromePicker } from "react-color";
+import { toast } from "sonner";
 
 // No need to pass props as promises since we use hooks
 
@@ -48,13 +51,12 @@ export default function InterviewHome() {
   const [currentPlan, setCurrentPlan] = useState<string>("");
   const [isGeneratingInsights, setIsGeneratingInsights] = useState<boolean>(false);
   const [isViewed, setIsViewed] = useState<boolean>(false);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [showColorPicker, setShowColorPicker] = useState<boolean>(false);
-  const [themeColor, setThemeColor] = useState<string>("#4F46E5");
-  const [iconColor, seticonColor] = useState<string>("#4F46E5");
-  const { organizationId } = useAuth();
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
+  const [interviewLoading, setInterviewLoading] = useState(true);
+  const [responsesLoading, setResponsesLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
+
+  const loading = interviewLoading || responsesLoading;
 
   useEffect(() => {
     setMounted(true);
@@ -77,23 +79,26 @@ export default function InterviewHome() {
   useEffect(() => {
     const fetchInterview = async () => {
       try {
+        setInterviewLoading(true);
         const response = await getInterviewById(interviewId);
-        setInterview(response);
-        setIsActive(response.is_active);
-        setIsViewed(response.is_viewed);
-        setThemeColor(response.theme_color ?? "#4F46E5");
-        seticonColor(response.theme_color ?? "#4F46E5");
-        setLoading(true);
+        if (response) {
+          setInterview(response);
+          setIsActive(response.is_active);
+          setIsViewed(response.is_viewed);
+          setThemeColor(response.theme_color ?? "#4F46E5");
+          seticonColor(response.theme_color ?? "#4F46E5");
+        }
       } catch (error) {
-        console.error(error);
+        console.error("Error fetching interview:", error);
       } finally {
-        setLoading(false);
+        setInterviewLoading(false);
       }
     };
-    if (!interview) {
+
+    if (interviewId) {
       fetchInterview();
     }
-  }, [getInterviewById, interviewId, interview]);
+  }, [getInterviewById, interviewId]);
 
   useEffect(() => {
     const fetchOrganizationData = async () => {
@@ -114,17 +119,19 @@ export default function InterviewHome() {
   useEffect(() => {
     const fetchResponses = async () => {
       try {
+        setResponsesLoading(true);
         const response = await ResponseService.getAllResponses(interviewId);
         setResponses(response);
-        setLoading(true);
       } catch (error) {
-        console.error(error);
+        console.error("Error fetching responses:", error);
       } finally {
-        setLoading(false);
+        setResponsesLoading(false);
       }
     };
 
-    fetchResponses();
+    if (interviewId) {
+      fetchResponses();
+    }
   }, [interviewId]);
 
   const handleDeleteResponse = (deletedCallId: string) => {
@@ -220,7 +227,7 @@ export default function InterviewHome() {
     setShowColorPicker(false);
   };
 
-  const filterResponses = () => {
+  const filteredResponses = useMemo(() => {
     if (!responses) return [];
     if (filterStatus === "ALL") return responses;
 
@@ -230,7 +237,7 @@ export default function InterviewHome() {
       }
       return response?.candidate_status === filterStatus;
     });
-  };
+  }, [responses, filterStatus]);
 
   return (
     <div className="flex flex-col w-full h-full m-2 bg-white">
@@ -355,7 +362,8 @@ export default function InterviewHome() {
             <div className="w-[20%] flex flex-col p-2 divide-y-2 rounded-sm border-2 border-slate-100">
               <div className="flex w-full justify-center py-2">
                 <Select
-                  onValueChange={async (newValue: string) => {
+                  value={filterStatus}
+                  onValueChange={(newValue: string) => {
                     setFilterStatus(newValue);
                   }}
                 >
@@ -399,8 +407,8 @@ export default function InterviewHome() {
               </div>
 
               <ScrollArea className="h-full p-1 rounded-md border-none">
-                {filterResponses().length > 0 ? (
-                  filterResponses().map((response) => (
+                {filteredResponses.length > 0 ? (
+                  filteredResponses.map((response) => (
                     <button
                       type="button"
                       className={`p-2 rounded-md hover:bg-indigo-100 border-2 my-1 text-left text-xs ${

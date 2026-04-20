@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 echo "🚀 Setting up local Python environment..."
 
@@ -21,9 +22,14 @@ if [ ! -d "venv" ]; then
 fi
 
 # Activate and install
-source venv/bin/activate
-pip install --upgrade pip
-pip install -r requirements.txt
+source venv/bin/activate || true
+
+# Use the venv python explicitly for reliability
+VENV_PYTHON="venv/bin/python3"
+
+echo "🛠 Updating pip and dependencies..."
+$VENV_PYTHON -m pip install --upgrade pip
+$VENV_PYTHON -m pip install -r requirements.txt
 
 echo "📡 Starting FastAPI server on port 8001..."
-python main.py
+$VENV_PYTHON main.py
